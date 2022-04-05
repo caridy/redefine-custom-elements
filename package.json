@@ -1,0 +1,32 @@
+{
+    "name": "live-custom-elements-registry",
+    "version": "0.0.1",
+    "license": "MIT",
+    "author": "Caridy Patiño <caridy@gmail.com>",
+    "description": "Experimental Library to bypass custom elements registry restrictions",
+    "module": "lib/index.js",
+    "scripts": {
+        "prepare": "npm run build",
+        "clean": "rimraf dist types",
+        "build": "tsc"
+    },
+    "files": [
+        "lib/"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "devDependencies": {
+        "rimraf": "3.0.2",
+        "tslib": "2.3.1",
+        "typescript": "4.6.2"
+    },
+    "engines": {
+        "node": ">=16"
+    },
+    "engineStrict": true,
+    "volta": {
+        "node": "16.13.1",
+        "yarn": "1.22.11"
+    }
+}
