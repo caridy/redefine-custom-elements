@@ -55,7 +55,7 @@ function createDefinitionRecord(constructor: CustomElementConstructor): Definiti
         formStateRestoreCallback,
     } = constructor.prototype;
     const observedAttributes = new Set<string>((constructor as any).observedAttributes || []);
-    const definition: Definition = {
+    return {
         LatestCtor: constructor,
         connectedCallback,
         disconnectedCallback,
@@ -67,13 +67,9 @@ function createDefinitionRecord(constructor: CustomElementConstructor): Definiti
         attributeChangedCallback,
         observedAttributes,
     };
-    return definition;
 }
 
-function getObservedAttributesOffset(
-    originalDefinition: Definition,
-    instancedDefinition: Definition
-) {
+function getObservedAttributesOffset(originalDefinition: Definition, instancedDefinition: Definition) {
     // natively, the attributes observed by the registered definition are going to be taken
     // care of by the browser, only the difference between the two sets has to be taken
     // care by the patched version.
@@ -138,10 +134,7 @@ function patchAttributes(
 // out to the internal registry for the given element
 function createPivotingClass(originalDefinition: Definition, tagName: string) {
     return class PivotCtor extends NativeHTMLElement {
-        constructor(
-            definition?: Definition,
-            args?: any[]
-        ) {
+        constructor(definition?: Definition, args?: any[]) {
             // This constructor can only be invoked by:
             // a) the browser instantiating  an element from parsing or via document.createElement.
             // b) new UserClass.
@@ -161,7 +154,23 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
                 // connected to the DOM.
                 throw new TypeError('Illegal invocation');
             }
-            scheduleOrUpgradeInstance(this, tagName, originalDefinition);
+
+            // Schedule or upgrade instance
+            definition = definitionsByTag.get(tagName);
+            if (definition) {
+                // browser's initiated a controlled instantiation where we
+                // were able to set up the internal registry and the definition.
+                internalUpgrade(this, originalDefinition, definition);
+            } else {
+                // This is the case in which there is no definition yet, and
+                // we need to add it to the pending queue just in case it eventually
+                // gets defined locally.
+                pendingRegistryForElement.set(this, originalDefinition);
+                // We need to install the minimum HTMLElement prototype so that
+                // this instance works like a regular element without a registered
+                // definition; #internalUpgrade will eventually install the full CE prototype
+                ReflectSetPrototypeOf(this, patchedHTMLElement.prototype);
+            }
         }
         connectedCallback() {
             const definition = definitionForElement.get(this);
@@ -169,7 +178,12 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
                 // Delegate out to user callback
                 definition.connectedCallback?.call(this);
             } else {
-                scheduleConnectedCallback(this, tagName);
+                // Register for upgrade when defined (only when connected, so we don't leak)
+                let awaiting = awaitingUpgrade.get(tagName);
+                if (!awaiting) {
+                    awaitingUpgrade.set(tagName, (awaiting = new Set()));
+                }
+                awaiting.add(this);
             }
         }
         disconnectedCallback() {
@@ -178,7 +192,11 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
                 // Delegate out to user callback
                 definition.disconnectedCallback?.call(this);
             } else {
-                scheduleDisconnectedCallback(this, tagName);
+                // Un-register for upgrade when defined (so we don't leak)
+                const awaiting = awaitingUpgrade.get(tagName);
+                if (awaiting) {
+                    awaiting.delete(this);
+                }
             }
         }
         adoptedCallback() {
@@ -279,45 +297,6 @@ function getDefinitionForConstructor(constructor: CustomElementConstructor): Def
         definitionForConstructor.set(constructor, definition);
     }
     return definition;
-}
-
-function scheduleConnectedCallback(instance: HTMLElement, tagName: string) {
-    // Register for upgrade when defined (only when connected, so we don't leak)
-    let awaiting = awaitingUpgrade.get(tagName);
-    if (!awaiting) {
-        awaitingUpgrade.set(tagName, (awaiting = new Set()));
-    }
-    awaiting.add(instance);
-}
-
-function scheduleDisconnectedCallback(instance: HTMLElement, tagName: string) {
-    // Un-register for upgrade when defined (so we don't leak)
-    const awaiting = awaitingUpgrade.get(tagName);
-    if (awaiting) {
-        awaiting.delete(instance);
-    }
-}
-
-function scheduleOrUpgradeInstance(
-    instance: HTMLElement,
-    tagName: string,
-    originalDefinition: Definition
-) {
-    const definition = definitionsByTag.get(tagName);
-    if (definition) {
-        // browser's initiated a controlled instantiation where we
-        // were able to set up the internal registry and the definition.
-        internalUpgrade(instance, originalDefinition, definition);
-    } else {
-        // This is the case in which there is no definition yet, and
-        // we need to add it to the pending queue just in case it eventually
-        // gets defined locally.
-        pendingRegistryForElement.set(instance, originalDefinition);
-        // We need to install the minimum HTMLElement prototype so that
-        // this instance works like a regular element without a registered
-        // definition; #internalUpgrade will eventually install the full CE prototype
-        ReflectSetPrototypeOf(instance, patchedHTMLElement.prototype);
-    }
 }
 
 const patchedHTMLElement = function HTMLElement(this: HTMLElement, ...args: any[]) {

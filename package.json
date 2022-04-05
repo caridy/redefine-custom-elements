@@ -1,9 +1,9 @@
 {
-    "name": "live-custom-elements-registry",
+    "name": "redefine-custom-elements",
     "version": "0.0.1",
     "license": "MIT",
     "author": "Caridy Patiño <caridy@gmail.com>",
-    "description": "Experimental Library to bypass custom elements registry restrictions",
+    "description": "Experimental library to allow re-defining custom elements",
     "module": "lib/index.js",
     "scripts": {
         "prepare": "npm run build",
