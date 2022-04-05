@@ -146,15 +146,6 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
                 return this;
             }
 
-            // a) browser's initiated instantiation.
-            if (!ReflectApply(nativeNodeIsConnectedGetter, this, [])) {
-                // TODO: I'm not sure yet how is this going to be possible, but
-                // seems very odd that someone is creating an instance without
-                // doing new on the constructor, and without the element be
-                // connected to the DOM.
-                throw new TypeError('Illegal invocation');
-            }
-
             // Schedule or upgrade instance
             definition = definitionsByTag.get(tagName);
             if (definition) {

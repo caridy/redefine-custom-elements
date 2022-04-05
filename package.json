@@ -1,6 +1,6 @@
 {
     "name": "redefine-custom-elements",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "license": "MIT",
     "author": "Caridy Patiño <caridy@gmail.com>",
     "description": "Experimental library to allow re-defining custom elements",
