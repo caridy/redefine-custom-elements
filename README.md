@@ -2,9 +2,13 @@
 
 This experimental library patches the global custom elements registry to allow re-defining a custom element. Based on the spec, a custom element can be defined for a qualifying name only once, the class itself cannot be reused for a different name as well. These two restrictions often pushes developers away from using custom elements, or even supporting custom elements in their platforms, specifically, any framework that allows live refresh of the code without reloading the page will eventually encounter that these restrictions will prevent this from happening.
 
-## Goal
+## Use Cases
 
-* To allow redefinition of a custom element via `customElements.define()` API.
+Allowing redefinition of a custom element via `customElements.define()` API can help with the following use-cases:
+
+* Hot module replacement.
+* Designing Custom Elements at runtime.
+* Testing and Automation.
 
 ## Usage
 
