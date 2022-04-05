@@ -6,6 +6,16 @@ This experimental library patches the global custom elements registry to allow r
 
 * To allow redefinition of a custom element via `customElements.define()` API.
 
+## Usage
+
+Just import the library to patch the registry:
+
+```js
+import "redefine-custom-elements";
+customElements.define('x-foo', class Foo extends HTMLElement {});
+customElements.define('x-foo', class Bar extends HTMLElement {});
+```
+
 ## Design
 
 The concept of a pivot constructor is well proven now, it is used by the [scoped custom elements registry polyfill](https://github.com/webcomponents/polyfills/tree/master/packages/scoped-custom-element-registry/) as well, which inspire many parts of this library. This library relies on this concept to install a pivotal constructor into the custom elements registry, and whenever that pivot constructor is called by the engine, a corresponding (user-defined) constructor can be used to construct the final version of the instance before handing that over to user-land. To achieve this, we need to patch various methods of the `CustomElementRegistry.prototype`, and the `HTMLElement` constructor.
