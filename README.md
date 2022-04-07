@@ -12,7 +12,13 @@ Allowing redefinition of a custom element via `customElements.define()` API can 
 
 ## Usage
 
-Just import the library to patch the registry:
+Installation:
+
+```bash
+npm i redefine-custom-elements
+```
+
+Then just import the library to patch the custom elements registry:
 
 ```js
 import "redefine-custom-elements";

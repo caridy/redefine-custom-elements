@@ -1,9 +1,13 @@
 {
     "name": "redefine-custom-elements",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "license": "MIT",
     "author": "Caridy Patiño <caridy@gmail.com>",
     "description": "Experimental library to allow re-defining custom elements",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/caridy/redefine-custom-elements.git"
+    },
     "module": "lib/index.js",
     "scripts": {
         "prepare": "npm run build",
