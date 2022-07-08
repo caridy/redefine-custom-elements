@@ -12,6 +12,11 @@ interface Definition {
     observedAttributes: Set<string>;
 }
 
+export interface RedefinedCustomElementDetail {
+    tagName: string;
+    newConstructor: CustomElementConstructor;
+}
+
 const cer = customElements;
 const NativeHTMLElement = HTMLElement;
 
@@ -381,6 +386,7 @@ Object.assign(CustomElementRegistry.prototype, {
         definitionsByTag.set(tagName, definition);
         definitionsByClass.set(constructor, definition);
         PivotCtor = pivotCtorByTag.get(tagName);
+        const wasRedefined = !!PivotCtor;
         if (!PivotCtor) {
             PivotCtor = createPivotingClass(
                 definition,
@@ -414,6 +420,20 @@ Object.assign(CustomElementRegistry.prototype, {
         const resolver = definedResolvers.get(tagName);
         if (resolver) {
             resolver(constructor);
+        }
+
+        if (wasRedefined) {
+            const definedEvent = new CustomEvent<RedefinedCustomElementDetail>(
+            'redefined-custom-element',
+            {
+                detail: {
+                tagName,
+                newConstructor: constructor,
+                },
+            }
+            );
+
+            document.dispatchEvent(definedEvent);
         }
     },
     whenDefined(
