@@ -324,7 +324,12 @@ const patchedHTMLElement = function HTMLElement(this: HTMLElement, ...args: any[
 }
 patchedHTMLElement.prototype = NativeHTMLElement.prototype;
 
+let active = false;
 export function activate() {
+  if (active) {
+    return;
+  }
+  active = true;
   // patching global registry associated to the global object
   Object.assign(CustomElementRegistry.prototype, {
     get(
