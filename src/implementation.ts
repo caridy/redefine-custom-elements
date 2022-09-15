@@ -134,7 +134,7 @@ function patchAttributes(
 // out to the internal registry for the given element
 function createPivotingClass(originalDefinition: Definition, tagName: string) {
   return class PivotCtor extends NativeHTMLElement {
-    constructor(definition?: Definition, args?: any[]) {
+    constructor(definition?: Definition, args?: any[], needsConstructorCallTrick = true) {
       // This constructor can only be invoked by:
       // a) the browser instantiating  an element from parsing or via document.createElement.
       // b) new UserClass.
@@ -142,7 +142,7 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
 
       // b) user's initiated instantiation via new Ctor() in a sandbox
       if (definition) {
-        internalUpgrade(this, originalDefinition, definition, args);
+        internalUpgrade(this, originalDefinition, definition, needsConstructorCallTrick, args);
         return this;
       }
 
@@ -151,7 +151,7 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
       if (definition) {
         // browser's initiated a controlled instantiation where we
         // were able to set up the internal registry and the definition.
-        internalUpgrade(this, originalDefinition, definition);
+        internalUpgrade(this, originalDefinition, definition, needsConstructorCallTrick);
       } else {
         // This is the case in which there is no definition yet, and
         // we need to add it to the pending queue just in case it eventually
@@ -241,6 +241,7 @@ function internalUpgrade(
   instance: HTMLElement,
   originalDefinition: Definition,
   instancedDefinition: Definition,
+  needsConstructorCallTrick: boolean,
   args?: any[]
 ) {
   ReflectSetPrototypeOf(instance, instancedDefinition.LatestCtor.prototype);
@@ -249,13 +250,17 @@ function internalUpgrade(
   if (instancedDefinition !== originalDefinition) {
     patchAttributes(instance, originalDefinition, instancedDefinition);
   }
-  // Tricking the construction path to believe that a new instance is being created,
-  // that way it will execute the super initialization mechanism but the HTMLElement
-  // constructor will reuse the instance by returning the upgradingInstance.
-  // This is by far the most important piece of the puzzle
-  upgradingInstance = instance;
-  // TODO: do we need to provide a newTarget here as well? if yes, what should that be?
-  ReflectConstruct(instancedDefinition.LatestCtor, args || []);
+  if (needsConstructorCallTrick) {
+    // Tricking the construction path to believe that a new instance is being
+    // created, that way it will execute the super initialization mechanism but
+    // the HTMLElement constructor will reuse the instance by returning the
+    // upgradingInstance.
+    // This is by far the most important piece of the puzzle
+    upgradingInstance = instance;
+    // TODO: do we need to provide a newTarget here as well? if yes, what
+    // should that be ?
+    ReflectConstruct(instancedDefinition.LatestCtor, args || []);
+  }
 
   const { observedAttributes, attributeChangedCallback } = instancedDefinition;
   if (observedAttributes.size > 0 && attributeChangedCallback) {
@@ -320,7 +325,12 @@ const patchedHTMLElement = function HTMLElement(this: HTMLElement, ...args: any[
   }
   // This constructor is ONLY invoked when it is the user instantiating
   // an element via new Ctor while Ctor is the latest registered constructor.
-  return new definition.PivotCtor(definition, args);
+  // We pass in `false` for needsConstructorCallTrick here because in this
+  // case the full class heirerarchy of constructors has already been called,
+  // so if we did the constructor call trick we'd call the constructors twice,
+  // which is both unnecessary and  observable from user code if there's
+  // any code with side effects in any constructors.
+  return new definition.PivotCtor(definition, args, false);
 }
 patchedHTMLElement.prototype = NativeHTMLElement.prototype;
 
@@ -407,7 +417,7 @@ export function activate() {
           const originalDefinition = pendingRegistryForElement.get(element);
           if (originalDefinition) {
             pendingRegistryForElement.delete(element);
-            internalUpgrade(element, originalDefinition, definition);
+            internalUpgrade(element, originalDefinition, definition, true);
           }
         });
       }
