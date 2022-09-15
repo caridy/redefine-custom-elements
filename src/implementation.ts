@@ -69,6 +69,11 @@ function createDefinitionRecord(constructor: CustomElementConstructor): Definiti
   };
 }
 
+function updateDefinitionRecord(
+  definition: Definition, constructor: CustomElementConstructor) {
+  Object.assign(definition, createDefinitionRecord(constructor));
+}
+
 function getObservedAttributesOffset(originalDefinition: Definition, instancedDefinition: Definition) {
   // natively, the attributes observed by the registered definition are going to be taken
   // care of by the browser, only the difference between the two sets has to be taken
@@ -228,7 +233,6 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
 let upgradingInstance: HTMLElement | undefined;
 const definitionForElement = new WeakMap<HTMLElement, Definition>();
 const pendingRegistryForElement = new WeakMap<HTMLElement, Definition>();
-const definitionForConstructor = new WeakMap<CustomElementConstructor, Definition>();
 const pivotCtorByTag = new Map<string, CustomElementConstructor>();
 const definitionsByTag = new Map<string, Definition>();
 const definitionsByClass = new Map<CustomElementConstructor, Definition>();
@@ -283,14 +287,18 @@ function internalUpgrade(
   }
 }
 
-function getDefinitionForConstructor(constructor: CustomElementConstructor): Definition {
-  if (!constructor || !constructor.prototype || typeof constructor.prototype !== 'object') {
+function getDefinitionForTagName(
+  tagName: string, constructor: CustomElementConstructor): Definition {
+  if (!constructor || !constructor.prototype ||
+    typeof constructor.prototype !== 'object') {
     throw new TypeError(`The referenced constructor is not a constructor.`);
   }
-  let definition = definitionForConstructor.get(constructor);
+  let definition = definitionsByTag.get(tagName);
   if (!definition) {
     definition = createDefinitionRecord(constructor);
-    definitionForConstructor.set(constructor, definition);
+    definitionsByTag.set(tagName, definition);
+  } else {
+    updateDefinitionRecord(definition, constructor);
   }
   return definition;
 }
@@ -382,14 +390,13 @@ export function activate() {
           `Failed to execute 'define' on 'CustomElementRegistry': the name "${tagName}" has already been used with this registry`
         );
       }
-      const definition = getDefinitionForConstructor(constructor);
       if (definitionsByClass.get(constructor)) {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw new DOMException(
           `Failed to execute 'define' on 'CustomElementRegistry': this constructor has already been used with this registry`
         );
       }
-      definitionsByTag.set(tagName, definition);
+      const definition = getDefinitionForTagName(tagName, constructor);
       definitionsByClass.set(constructor, definition);
       PivotCtor = pivotCtorByTag.get(tagName);
       if (!PivotCtor) {
