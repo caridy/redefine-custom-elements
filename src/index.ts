@@ -10,6 +10,7 @@ interface Definition {
     formResetCallback: (() => void) | void;
     formStateRestoreCallback: (() => void) | void;
     observedAttributes: Set<string>;
+    formAssociated?: boolean;
 }
 
 const cer = customElements;
@@ -55,6 +56,7 @@ function createDefinitionRecord(constructor: CustomElementConstructor): Definiti
         formStateRestoreCallback,
     } = constructor.prototype;
     const observedAttributes = new Set<string>((constructor as any).observedAttributes || []);
+    const formAssociated = (constructor as any).formAssociated || false;
     return {
         LatestCtor: constructor,
         connectedCallback,
@@ -66,6 +68,7 @@ function createDefinitionRecord(constructor: CustomElementConstructor): Definiti
         formStateRestoreCallback,
         attributeChangedCallback,
         observedAttributes,
+        formAssociated
     };
 }
 
@@ -222,6 +225,7 @@ function createPivotingClass(originalDefinition: Definition, tagName: string) {
         }
 
         static observedAttributes = originalDefinition.observedAttributes;
+        static formAssociated = originalDefinition.formAssociated;
     };
 }
 
